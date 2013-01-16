@@ -32,7 +32,7 @@ class IRC:
     # TODO - WOAH FIX THIS PIECE OF SHIT
     def __init__(self, nick, user, server, port, realname, channels):
         self.nick = nick
-        sAelf.user = user
+        self.user = user
         self.server = server
         self.port = port
         self.realname = realname
