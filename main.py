@@ -24,8 +24,9 @@ channels = ["#enya"]
 # None below here
 
 # TODO: make these not global -.-
-with open('userlist.txt', 'r') as f:
-    userlist = [x.rstrip('\n') for x in f]
+with open('userlist.txt', 'r') as file:
+    userlist = [x.rstrip('\n') for x in file]
+
 npcache = {}
 
 class IRC:
@@ -40,7 +41,6 @@ class IRC:
 
         # Commands
         self.commands = dict()
-
         self.commands['NOTICE'] = self.do_notice
         self.commands['PRIVMSG'] = self.do_privmsg
         self.commands['PING'] = self.do_ping
@@ -137,9 +137,10 @@ class IRC:
                 userlist.append(param)
                 npcache[param] = ((None,)*5, None)
 
-                with open('userlist.txt', 'w') as f:
+                with open('userlist.txt', 'w') as file:
                     for l in userlist:
-                        f.write('\n'.join(userlist))
+                        file.write(l)
+                        file.write('\n')
 
                 self.send(self.parsed_line(None, "PRIVMSG", ['Elizacat', 'Done!']))
 
@@ -153,9 +154,10 @@ class IRC:
                 if param in npcache:
                     del npcache[param]
 
-                with open('userlist.txt', 'w') as f:
+                with open('userlist.txt', 'w') as file:
                     for l in userlist:
-                        f.write('\n'.join(userlist))
+                        file.write(l)
+                        file.write('\n')
 
                 self.send(self.parsed_line(None, "PRIVMSG", ['Elizacat', 'Done!']))
 
@@ -207,6 +209,7 @@ def do_poll(lastfm, irc):
                 uinstance = pylast.User(k, lastfm)
 
             try:
+                sleep(len(userlist)/2)
                 track = uinstance.get_now_playing()
             except pylast.WSError as e:
                 if str(e) != "No user with that name was found":
@@ -215,7 +218,7 @@ def do_poll(lastfm, irc):
                 userlist.remove(k)
                 del npcache[k]
 
-                print("Error adding user k: {}".format(str(e)))
+                print("Error adding user: {}".format(str(e)))
                 continue
 
             if track is None: continue
@@ -253,15 +256,20 @@ def do_poll(lastfm, irc):
             irc.spam_msg(string)
             npcache[k] = (np, uinstance)
 
-        sleep(10)
-
+def exception_wrapper(irc, lastfm):
+    while True:
+        try:
+            do_poll(irc, lastfm)
+        except Exception as e:
+            irc.spam_msg("last.fm collector crapped itself. Restarting... some NP's may get lost.")
+            sleep(10)
 
 f = IRC(nick, user, server, port, realname, channels)
 f.connect()
 g1 = spawn(f.dispatch)
 
 network = pylast.LastFMNetwork(api_key = APIKEY, api_secret = SECRET, username = USERNAME, password_hash = PASSWORD)
-g2 = spawn(do_poll, *(network, f))
+g2 = spawn(exception_wrapper, *(network, f))
 
 joinall((g1, g2))
 
