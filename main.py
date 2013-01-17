@@ -196,7 +196,7 @@ class IRC:
                 if p.command in self.commands:
                     self.commands[p.command](p)
 
-def do_poll(lastfm, irc):
+def do_poll(irc, lastfm):
     # FIXME encapsulate
     for u in userlist:
         npcache[u] = ((None,)*5, None)
@@ -269,7 +269,7 @@ f.connect()
 g1 = spawn(f.dispatch)
 
 network = pylast.LastFMNetwork(api_key = APIKEY, api_secret = SECRET, username = USERNAME, password_hash = PASSWORD)
-g2 = spawn(exception_wrapper, *(network, f))
+g2 = spawn(exception_wrapper, *(f, network))
 
 joinall((g1, g2))
 
