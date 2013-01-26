@@ -17,3 +17,10 @@ realname = "Your worst nightmare."
 
 ## The channels to join.
 channels = ["#enya", "#alyx", "#auto"]
+
+## Last.fm creds
+# User configurable parts
+lastfm_username = "therealelizacat"
+lastfm_pwhash = "" # pylast.md5() - hint.
+lastfm_apikey = ""
+lastfm_secret = ""

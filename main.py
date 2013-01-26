@@ -7,20 +7,19 @@ monkey.patch_all()
 
 from collections import namedtuple
 from copy import deepcopy
-from settings import server,port,nick,user,realname,channels
+from settings import server,port,nick,user,realname,channels,lastfm_username,lastfm_pwhash,lastfm_apikey,lastfm_secret
 import urllib.request as urlreq
 from urllib.parse import quote_plus as urlquote
 import xml.dom.minidom as minidom
 
 # User configurable parts
-USERNAME = "therealelizacat"
-PASSWORD = "499c2d7ae9b60028c286c6b20f8f3d81" # pylast.md5() - hint.
-APIKEY = "bf68f12315aea1b0b08b782cd5f59ad9"
-SECRET = "22fea42e3a87dd0d4a0b44cd5bf156b5"
+USERNAME = lastfm_username
+PASSWORD = lastfm_pwhash
+APIKEY = lastfm_apikey
+SECRET = lastfm_secret
 
 admin_nicks = ['Elizacat',]
 admin_hosts = ['always.lowing.the.bar',]
-# None below here
 
 # TODO: make these not global -.-
 user_changed = False
@@ -206,7 +205,7 @@ def load_users():
 
 def dl_xml_from(url):
     # Fsck it, we'll do it live, I don't care
-    # I know I'll be murdered unpleasantly by a cat, but I like doing things MY WAY, OK
+    # I know I'll be murdered unpleasantly by a cat, but I like doing things MY WAY, OK - CorgiDude
     try:
         last_sock = urlreq.urlopen(url)
     except Exception as e:
