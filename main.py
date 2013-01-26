@@ -9,6 +9,7 @@ from collections import namedtuple
 from copy import deepcopy
 from settings import server,port,nick,user,realname,channels
 import urllib.request as urlreq
+from urllib.parse import quote_plus as urlquote
 import xml.dom.minidom as minidom
 
 # User configurable parts
@@ -254,22 +255,22 @@ def get_np_for(user):
 def get_counts_for(track, user):
     params = ""
     if track['mbid'] is None:
-        params = "artist={artist}&track={track}".format(artist = track['artist'], track = track['title'])
+        params = "artist={artist}&track={track}".format(artist = urlquote(track['artist']), track = urlquote(track['title']))
     else:
         params = "mbid={mbid}".format(mbid = track['mbid'])
     url = "http://ws.audioscrobbler.com/2.0/?method=track.getInfo&{params}&username={user}&api_key={key}".format(user = user, params = params, key = APIKEY)
     print(url)
     last_doc = dl_xml_from(url)
 
-    #try:
-    track_ms = last_doc.getElementsByTagName("duration")[0].childNodes[0].data
-    #except:
-    #    track_ms = 0
+    try:
+        track_ms = last_doc.getElementsByTagName("duration")[0].childNodes[0].data
+    except:
+        track_ms = 0
     
-    #try:
-    play_count = last_doc.getElementsByTagName("userplaycount")[0].childNodes[0].data
-    #except:
-    #    play_count = 0
+    try:
+        play_count = last_doc.getElementsByTagName("userplaycount")[0].childNodes[0].data
+    except:
+        play_count = 0
     
     duration = '{}:{:02d}'.format(*divmod(int(int(track_ms) / 1000), 60))
     return (duration, play_count)
@@ -313,10 +314,10 @@ def do_poll(irc):
             artist = track['artist']
             title = track['title']
             album = track['album']
-            #try:
-            duration, count = get_counts_for(track, k)
-            #except:
-            #    duration = count = 0
+            try:
+                duration, count = get_counts_for(track, k)
+            except:
+                duration = count = 0
 
             np = (artist, title, album, duration, count)
             if last == (None,)*5:
@@ -337,7 +338,7 @@ def exception_wrapper(irc):
             do_poll(irc)
         except Exception as e:
             irc.spam_msg("last.fm collector crapped itself. Restarting... some NP's may get lost.")
-            print("The reason I crapped all over IRC and it smells real bad is: {exc}".format(exc = e))
+            print("The reason I crapped all over IRC and it smells real bad is: ({extype}) {exc}".format(extype = type(e), exc = e))
             sleep(10)
 
 f = IRC(nick, user, server, port, realname, channels)
