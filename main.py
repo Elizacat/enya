@@ -24,7 +24,7 @@ admin_hosts = ['always.lowing.the.bar',]
 # TODO: make these not global -.-
 user_changed = False
 
-def maybe_add_to_userlist(irc, admin, user):
+def add_to_userlist(irc, admin, user):
     global user_changed
     userlist = load_users()
     if param in userlist:
@@ -40,7 +40,7 @@ def maybe_add_to_userlist(irc, admin, user):
     irc.send(self.parsed_line(None, "PRIVMSG", [admin, 'Done!']))
     user_changed = True
 
-def maybe_del_from_userlist(irc, admin, user):
+def delete_from_userlist(irc, admin, user):
     global user_changed
     userlist = load_users()
     if param not in userlist:
@@ -157,10 +157,10 @@ class IRC:
                 cmd = cmd[1:]
 
             if cmd == 'add':
-                maybe_add_to_userlist(self, x, param)
+                add_to_userlist(self, x, param)
 
             elif cmd == 'del':
-                maybe_delete_from_userlist(self, x, param)
+                delete_from_userlist(self, x, param)
 
             elif cmd == 'list':
                 self.send(self.parsed_line(None, "PRIVMSG", [x, ' '.join(load_users())]))
