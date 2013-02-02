@@ -7,7 +7,8 @@ monkey.patch_all()
 
 from collections import namedtuple
 from copy import deepcopy
-from settings import server,port,nick,user,realname,channels,lastfm_username,lastfm_pwhash,lastfm_apikey,lastfm_secret
+from settings import *
+#server,port,nick,user,realname,channels,lastfm_username,lastfm_pwhash,lastfm_apikey,lastfm_secret,admin_nicks,admin_hosts
 import urllib.request as urlreq
 from urllib.parse import quote_plus as urlquote
 import xml.dom.minidom as minidom
@@ -17,9 +18,6 @@ USERNAME = lastfm_username
 PASSWORD = lastfm_pwhash
 APIKEY = lastfm_apikey
 SECRET = lastfm_secret
-
-admin_nicks = ['Elizacat',]
-admin_hosts = ['always.lowing.the.bar',]
 
 # TODO: make these not global -.-
 user_changed = False

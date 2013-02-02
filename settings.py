@@ -1,5 +1,9 @@
 # Enya configuration
 
+## Admins
+admin_nicks = ['Elizacat',]
+admin_hosts = ['smoke.weird.errday',]
+
 ## The IRC server to connect to.
 server = "irc.interlinked.me"
 
