@@ -141,7 +141,7 @@ class IRC:
 
             if y not in admin_hosts: return
             x, sep, y = x.partition('!')
-            if True not in [x.startswith(nick) for nick in admin_nicks]: return # XXX this is disgusting
+            if not any(x.startswith(nick) for nick in admin_nicks): return
 
             msg = line.params[-1]
             cmd, sep, param = msg.partition(' ')
