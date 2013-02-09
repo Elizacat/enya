@@ -122,7 +122,7 @@ class IRC:
         s = ' '.join(out)
         print(">", s)
         s += '\r\n'
-        self.sock.send(s.encode('UTF-8'))
+        self.sock.send(s.encode('UTF-8', 'replace'))
 
     def do_notice(self, line):
         if not self.serv_reg:
@@ -178,7 +178,7 @@ class IRC:
         while True:
             self.sock.send(b'\r\n')
             s = self.sock.recv(4096)
-            buf.append(s.decode('UTF-8'))
+            buf.append(s.decode('UTF-8', 'replace'))
 
             f = ''.join(buf)
             f = f.split('\r\n')
