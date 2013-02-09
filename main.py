@@ -22,6 +22,10 @@ SECRET = lastfm_secret
 # TODO: make these not global -.-
 user_changed = False
 
+def write_userlist(userlist):
+    with open('userlist.txt', 'w') as f:
+        f.write('\n'.join(userlist))
+
 def add_to_userlist(irc, admin, user):
     global user_changed
     userlist = load_users()
@@ -31,9 +35,7 @@ def add_to_userlist(irc, admin, user):
     
     userlist.append(param)
     
-    with open('userlist.txt', 'w') as f:
-        for l in userlist:
-            f.write('\n'.join(userlist))
+    write_userlist(userlist)
 
     irc.send(self.parsed_line(None, "PRIVMSG", [admin, 'Done!']))
     user_changed = True
@@ -46,11 +48,9 @@ def delete_from_userlist(irc, admin, user):
         return
     
     userlist.remove(param)
-    
-    with open('userlist.txt', 'w') as f:
-        for l in userlist:
-            f.write('\n'.join(userlist))
-    
+
+    write_userlist(userlist)
+
     irc.send(self.parsed_line(None, "PRIVMSG", [admin, 'Done!']))
     user_changed = True
 
