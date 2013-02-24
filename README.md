@@ -8,7 +8,7 @@ This code is distributed under the WTFPL, should you feel the need to touch it.
 
 How to use
 ===========
-See main.py. Requires gevent and pylast (preferably my version at http://github.com/Elizacat/pylast which has a few things)
+See main.py. Requires gevent and irclib (http://github.com/Elizacat/irclib)
 
 Bugs
 =====
