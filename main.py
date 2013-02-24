@@ -205,8 +205,6 @@ def do_poll(irc):
 
 def exception_wrapper(irc):
     while True:
-        do_poll(irc)
-        continue
         try:
             do_poll(irc)
         except Exception as e:
