@@ -1,17 +1,26 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
 # Enya - a crappy IRC bot that spews NP info
 # Copyright (C) 2013 Elizabeth Myers. Licensed under the WTFPL.
 
 from gevent import socket, monkey, sleep, spawn, joinall
 monkey.patch_all()
 
+from irclib.client.client import IRCClient
+
 from collections import namedtuple
 from copy import deepcopy
 from settings import *
-#server,port,nick,user,realname,channels,lastfm_username,lastfm_pwhash,lastfm_apikey,lastfm_secret,admin_nicks,admin_hosts
-import urllib.request as urlreq
-from urllib.parse import quote_plus as urlquote
+
+try:
+    import urllib.request as urlreq
+    from urllib.parse import quote_plus as urlquote
+except ImportError:
+    import urllib as urlreq
+    from urllib import quote_plus as urlquote
+
 import xml.dom.minidom as minidom
+
 
 # User configurable parts
 USERNAME = lastfm_username
@@ -22,6 +31,10 @@ SECRET = lastfm_secret
 # TODO: make these not global -.-
 user_changed = False
 
+def spam_msg(irc, message):
+    for ch in irc.channels.values():
+        irc.cmdwrite('PRIVMSG', [ch.name, message])
+
 def write_userlist(userlist):
     with open('userlist.txt', 'w') as f:
         f.write('\n'.join(userlist))
@@ -30,170 +43,29 @@ def add_to_userlist(irc, admin, user):
     global user_changed
     userlist = load_users()
     if param in userlist:
-        irc.send(self.parsed_line(None, "PRIVMSG", [admin, 'Already in there.']))
+        irc.cmdwrite('PRIVMSG', [admin, 'Already in there'])
         return
     
     userlist.append(param)
     
     write_userlist(userlist)
 
-    irc.send(self.parsed_line(None, "PRIVMSG", [admin, 'Done!']))
+    irc.cmdwrite('PRIVMSG', [admin, 'Done!'])
     user_changed = True
 
 def delete_from_userlist(irc, admin, user):
     global user_changed
     userlist = load_users()
     if param not in userlist:
-        self.send(self.parsed_line(None, "PRIVMSG", [admin,  'Not in there.']))
+        irc.cmdwrite('PRIVMSG', [admin,  'Not in there.'])
         return
     
     userlist.remove(param)
 
     write_userlist(userlist)
 
-    irc.send(self.parsed_line(None, "PRIVMSG", [admin, 'Done!']))
+    irc.cmdwrite('PRIVMSG', [admin, 'Done!'])
     user_changed = True
-
-class IRC:
-    # TODO - WOAH FIX THIS PIECE OF SHIT
-    def __init__(self, nick, user, server, port, realname, channels):
-        self.nick = nick
-        self.user = user
-        self.server = server
-        self.port = port
-        self.realname = realname
-        self.channels = channels
-
-        # Commands
-        self.commands = dict()
-        self.commands['NOTICE'] = self.do_notice
-        self.commands['PRIVMSG'] = self.do_privmsg
-        self.commands['PING'] = self.do_ping
-        self.commands['001'] = self.do_welcome
-
-        self.serv_reg = False
-
-        self.parsed_line = namedtuple("ParsedLine", ["hostmask", "command", "params"])
-
-    def parse(self, line):
-        line = line.rstrip('\r\n')
-        line, sep, lparam = line.partition(' :')
-
-        line = line.split()
-        if lparam is not None:
-            line.append(lparam)
-
-        if line[0][0] == ':':
-            hostmask = line[0][1:]
-            command = line[1]
-            if len(line) > 2:
-                params = line[2:]
-            else:
-                params = []
-        else:
-            hostmask = None
-            command = line[0]
-            if len(line) > 1:
-                params = line[1:]
-            else:
-                params = []
-
-        return self.parsed_line(hostmask, command, params)
-
-    def connect(self):
-        self.sock = socket.socket()
-        self.sock.connect((self.server, self.port))
-
-    def send(self, line):
-        out = []
-        if line.hostmask:
-            out.append(':' + line.hostmask)
-
-        out.append(line.command)
-
-        if line.params != []:
-            if line.params[-1].find(' ') != -1:
-                if len(line.params) > 1:
-                    out.extend(line.params[:-1])
-                out.append(':' + line.params[-1])
-            else:
-                out.extend(line.params)
-
-        s = ' '.join(out)
-        print(">", s)
-        s += '\r\n'
-        self.sock.send(s.encode('UTF-8', 'replace'))
-
-    def do_notice(self, line):
-        if not self.serv_reg:
-            self.send(self.parsed_line(None, 'USER', [self.user, '*', '*', self.realname]))
-            self.send(self.parsed_line(None, 'NICK', [self.nick]))
-
-            self.serv_reg = True
-
-    def do_privmsg(self, line):
-        # FIXME shitty.
-        if line.hostmask is not None:
-            x, sep, y = line.hostmask.partition('@')
-            if sep is None or y is None: return
-
-            if y not in admin_hosts: return
-            x, sep, y = x.partition('!')
-            if not any(x.startswith(nick) for nick in admin_nicks): return
-
-            msg = line.params[-1]
-            cmd, sep, param = msg.partition(' ')
-            cmd = cmd.lower()
-
-            if not cmd:
-                print("Empty message ", msg)
-                return
-
-            if cmd[0] != '!':
-                return
-            else:
-                cmd = cmd[1:]
-
-            if cmd == 'add':
-                add_to_userlist(self, x, param)
-
-            elif cmd == 'del':
-                delete_from_userlist(self, x, param)
-
-            elif cmd == 'list':
-                self.send(self.parsed_line(None, "PRIVMSG", [x, ' '.join(load_users())]))
-
-    def do_ping(self, line):
-        self.send(self.parsed_line(None, "PONG", line.params))
-
-    def do_welcome(self, line):
-        self.send(self.parsed_line(None, "JOIN", [','.join(self.channels)]))
-
-    def spam_msg(self, message):
-        for channel in self.channels:
-            self.send(self.parsed_line(None, "PRIVMSG", [channel, message]))
-
-    def dispatch(self):
-        buf = []
-        while True:
-            self.sock.send(b'\r\n')
-            s = self.sock.recv(4096)
-            buf.append(s.decode('UTF-8', 'replace'))
-
-            f = ''.join(buf)
-            f = f.split('\r\n')
-            if f[-1] != '':
-                buf = [f[-1]]
-            else:
-                buf = []
-
-            del f[-1]
-
-            for x in f:
-                print("<",x)
-                p = self.parse(x)
-                if p.command in self.commands:
-                    self.commands[p.command](p)
 
 def load_users():
     temp = []
@@ -226,8 +98,9 @@ def get_np_for(user):
     url = "http://ws.audioscrobbler.com/2.0/?method=user.getRecentTracks&user={user}&limit=1&api_key={key}".format(user = user, key = APIKEY)
     last_doc = dl_xml_from(url)
     tracks = last_doc.getElementsByTagName("track")
-    if tracks is None:
+    if tracks is None or len(tracks) == 0:
        return None # Punt.  Nothing can be done.
+
     our_track = tracks[0]
     try:
         info['title'] = our_track.getElementsByTagName("name")[0].childNodes[0].data
@@ -326,23 +199,36 @@ def do_poll(irc):
 
             string = "{} is listening to: {} - {} (album: {}) [{}] | Playcount: {}x".format(k, *np)
             print(string)
-            irc.spam_msg(string)
+    
+            spam_msg(irc, string)
             npcache[k] = np
 
 def exception_wrapper(irc):
     while True:
+        do_poll(irc)
+        continue
         try:
             do_poll(irc)
         except Exception as e:
-            irc.spam_msg("last.fm collector crapped itself. Restarting... some NP's may get lost.")
+            spam_msg(irc, "last.fm collector crapped itself. Restarting... some NP's may get lost.")
             print("The reason I crapped all over IRC and it smells real bad is: ({extype}) {exc}".format(extype = type(e), exc = e))
             sleep(10)
 
-f = IRC(nick, user, server, port, realname, channels)
-f.connect()
-g1 = spawn(f.dispatch)
 
-g2 = spawn(exception_wrapper, irc=f)
+def run_irc(irc):
+    try:
+        generator = irc.get_lines()
+        for line in generator: pass
+    except IOError as e:
+        print("Disconnected", str(e))
+        sleep(5) 
+
+irc = IRCClient(nick=nick, user=user, host=server, port=port,
+                realname=realname, channels=channels)
+irc.connect()
+
+g1 = spawn(run_irc, irc)
+g2 = spawn(exception_wrapper, irc=irc)
 
 joinall((g1, g2))
 
