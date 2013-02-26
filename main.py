@@ -23,8 +23,6 @@ import xml.dom.minidom as minidom
 
 
 # User configurable parts
-USERNAME = lastfm_username
-PASSWORD = lastfm_pwhash
 APIKEY = lastfm_apikey
 SECRET = lastfm_secret
 
@@ -129,7 +127,6 @@ def get_counts_for(track, user):
     else:
         params = "mbid={mbid}".format(mbid = track['mbid'])
     url = "http://ws.audioscrobbler.com/2.0/?method=track.getInfo&{params}&username={user}&api_key={key}".format(user = user, params = params, key = APIKEY)
-    print(url)
     last_doc = dl_xml_from(url)
 
     try:
