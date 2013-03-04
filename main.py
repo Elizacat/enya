@@ -132,7 +132,7 @@ def get_np_for(user):
 def get_counts_for(track, user):
     params = ""
     if track['mbid'] is None:
-        params = "artist={artist}&track={track}".format(artist = urlquote(track['artist']), track = urlquote(track['title']))
+        params = "artist={artist}&track={track}".format(artist = urlquote(unicode(track['artist']).encode('utf-8', 'replace')), track = urlquote(unicode(track['title']).encode('utf-8', 'replace')))
     else:
         params = "mbid={mbid}".format(mbid = track['mbid'])
     url = "http://ws.audioscrobbler.com/2.0/?method=track.getInfo&{params}&username={user}&api_key={key}".format(user = user, params = params, key = APIKEY)
@@ -209,7 +209,7 @@ def do_poll(irc):
             elif last == np:
                 continue
 
-            string = "{} is listening to: {} - {} (album: {}) [{}] | Playcount: {}x | Genre: {}".format(k, *np)
+            string = u"{} is listening to: {} - {} (album: {}) [{}] | Playcount: {}x | Genre: {}".format(k, *np)
             print(string)
     
             spam_msg(irc, string)
