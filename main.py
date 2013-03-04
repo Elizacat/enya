@@ -11,6 +11,7 @@ from irclib.client.client import IRCClient
 from collections import namedtuple
 from copy import deepcopy
 from settings import *
+import traceback
 
 try:
     import urllib.request as urlreq
@@ -220,7 +221,8 @@ def exception_wrapper(irc):
             do_poll(irc)
         except Exception as e:
             spam_msg(irc, "last.fm collector crapped itself. Restarting... some NP's may get lost.")
-            print("The reason I crapped all over IRC and it smells real bad is: ({extype}) {exc}".format(extype = type(e), exc = e))
+            print("The reason I crapped all over IRC and it smells real bad is:")
+            traceback.print_exc()
             sleep(10)
 
 
