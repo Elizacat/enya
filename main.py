@@ -98,8 +98,16 @@ def get_np_for(user):
     tracks = last_doc.getElementsByTagName("track")
     if tracks is None or len(tracks) == 0:
        return None # Punt.  Nothing can be done.
-
-    our_track = tracks[0]
+    
+    our_track = None
+    for t in tracks:
+        if t.hasAttribute('nowplaying') is False: continue
+        else:
+            our_track = t
+            break
+    
+    if our_track is None: return None
+    
     try:
         info['title'] = our_track.getElementsByTagName("name")[0].childNodes[0].data
         info['artist'] = our_track.getElementsByTagName("artist")[0].childNodes[0].data
