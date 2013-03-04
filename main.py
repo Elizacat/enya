@@ -147,8 +147,13 @@ def get_counts_for(track, user):
     except:
         play_count = 0
     
+    try:
+        genre = last_doc.getElementsByTagName("tag")[0].getElementsByTagName("name")[0].childNodes[0].data
+    except:
+        genre = None
+    
     duration = '{}:{:02d}'.format(*divmod(int(int(track_ms) / 1000), 60))
-    return (duration, play_count)
+    return (duration, play_count, genre)
 
 def do_poll(irc):
     global user_changed
@@ -156,7 +161,7 @@ def do_poll(irc):
     npcache = {}
     
     for u in userlist:
-        npcache[u] = (None,)*5
+        npcache[u] = (None,)*6
 
     while True:
         if user_changed is True:
@@ -190,19 +195,20 @@ def do_poll(irc):
             title = track['title']
             album = track['album']
             try:
-                duration, count = get_counts_for(track, k)
+                duration, count, genre = get_counts_for(track, k)
             except:
                 duration = count = 0
+                genre = None
 
-            np = (artist, title, album, duration, count)
-            if last == (None,)*5:
+            np = (artist, title, album, duration, count, genre)
+            if last == (None,)*6:
                 npcache[k] = np
                 continue
 
             elif last == np:
                 continue
 
-            string = "{} is listening to: {} - {} (album: {}) [{}] | Playcount: {}x".format(k, *np)
+            string = "{} is listening to: {} - {} (album: {}) [{}] | Playcount: {}x | Genre: {}".format(k, *np)
             print(string)
     
             spam_msg(irc, string)
