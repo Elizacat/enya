@@ -14,6 +14,7 @@ from collections import namedtuple
 from copy import deepcopy
 
 from settings import *
+import traceback
 
 try:
     import urllib.request as urlreq
@@ -138,8 +139,16 @@ def get_np_for(user):
     tracks = last_doc.getElementsByTagName("track")
     if tracks is None or len(tracks) == 0:
        return None # Punt.  Nothing can be done.
-
-    our_track = tracks[0]
+    
+    our_track = None
+    for t in tracks:
+        if t.hasAttribute('nowplaying') is False: continue
+        else:
+            our_track = t
+            break
+    
+    if our_track is None: return None
+    
     try:
         info['title'] = our_track.getElementsByTagName("name")[0].childNodes[0].data
         info['artist'] = our_track.getElementsByTagName("artist")[0].childNodes[0].data
@@ -163,7 +172,7 @@ def get_np_for(user):
 def get_counts_for(track, user):
     params = ""
     if track['mbid'] is None:
-        params = "artist={artist}&track={track}".format(artist = urlquote(track['artist']), track = urlquote(track['title']))
+        params = "artist={artist}&track={track}".format(artist = urlquote(unicode(track['artist']).encode('utf-8', 'replace')), track = urlquote(unicode(track['title']).encode('utf-8', 'replace')))
     else:
         params = "mbid={mbid}".format(mbid = track['mbid'])
     url = "http://ws.audioscrobbler.com/2.0/?method=track.getInfo&{params}&username={user}&api_key={key}".format(user = user, params = params, key = APIKEY)
@@ -179,8 +188,13 @@ def get_counts_for(track, user):
     except:
         play_count = 0
     
+    try:
+        genre = last_doc.getElementsByTagName("tag")[0].getElementsByTagName("name")[0].childNodes[0].data
+    except:
+        genre = None
+    
     duration = '{}:{:02d}'.format(*divmod(int(int(track_ms) / 1000), 60))
-    return (duration, play_count)
+    return (duration, play_count, genre)
 
 def do_poll(irc):
     global user_changed
@@ -188,7 +202,7 @@ def do_poll(irc):
     npcache = {}
     
     for u in userlist:
-        npcache[u] = (None,)*5
+        npcache[u] = (None,)*6
 
     while True:
         if user_changed is True:
@@ -222,19 +236,20 @@ def do_poll(irc):
             title = track['title']
             album = track['album']
             try:
-                duration, count = get_counts_for(track, k)
+                duration, count, genre = get_counts_for(track, k)
             except:
                 duration = count = 0
+                genre = None
 
-            np = (artist, title, album, duration, count)
-            if last == (None,)*5:
+            np = (artist, title, album, duration, count, genre)
+            if last == (None,)*6:
                 npcache[k] = np
                 continue
 
             elif last == np:
                 continue
 
-            string = "{} is listening to: {} - {} (album: {}) [{}] | Playcount: {}x".format(k, *np)
+            string = u"{} is listening to: {} - {} (album: {}) [{}] | Playcount: {}x | Genre: {}".format(k, *np)
             print(string)
     
             spam_msg(irc, string)
@@ -246,7 +261,8 @@ def exception_wrapper(irc):
             do_poll(irc)
         except Exception as e:
             spam_msg(irc, "last.fm collector crapped itself. Restarting... some NP's may get lost.")
-            print("The reason I crapped all over IRC and it smells real bad is: ({extype}) {exc}".format(extype = type(e), exc = e))
+            print("The reason I crapped all over IRC and it smells real bad is:")
+            traceback.print_exc()
             sleep(10)
 
 
