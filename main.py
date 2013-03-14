@@ -3,6 +3,8 @@
 # Enya - a crappy IRC bot that spews NP info
 # Copyright (C) 2013 Elizabeth Myers. Licensed under the WTFPL.
 
+from __future__ import print_function, unicode_literals, division
+
 from gevent import socket, monkey, sleep, spawn, joinall
 monkey.patch_all()
 
@@ -10,6 +12,7 @@ from irclib.client.client import IRCClient
 
 from collections import namedtuple
 from copy import deepcopy
+
 from settings import *
 
 try:
@@ -28,6 +31,43 @@ SECRET = lastfm_secret
 
 # TODO: make these not global -.-
 user_changed = False
+
+def user_check(irc, line):
+    if not line.hostmask:
+        return
+
+    # XXX ugh, I hate this
+    if line.hostmask.nick not in admin_nicks:
+        return
+
+    if line.hostmask.host not in admin_hosts:
+        return
+
+    admin = line.hostmask.nick
+
+    message = line.params[-1]
+
+    if len(message) <= 1:
+        return
+
+    # Check if command
+    if message[0] not in ('!', '+', '-'):
+        return
+
+    command, sep, message = message[1:].partition(' ')
+    command = command.lower()
+    message = message.strip()
+
+    if not command:
+        return
+
+    if command.startswith('add'):
+        add_to_userlist(irc, admin, message)
+    elif command.startswith('del'):
+        delete_from_userlist(irc, admin, message)
+    elif command.startswith('list'):
+        userlist = load_users()
+        irc.cmdwrite('PRIVMSG', [admin, ' '.join(userlist)])
 
 def spam_msg(irc, message):
     for ch in irc.channels.values():
@@ -213,7 +253,9 @@ def exception_wrapper(irc):
 def run_irc(irc):
     try:
         generator = irc.get_lines()
-        for line in generator: pass
+        for line in generator:
+            if line and line.command == 'PRIVMSG':
+                user_check(irc, line)
     except IOError as e:
         print("Disconnected", str(e))
         sleep(5) 
