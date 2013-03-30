@@ -13,10 +13,16 @@ from irclib.client.client import IRCClient
 from collections import namedtuple
 from copy import deepcopy
 
-from settings import *
+import sys
 import traceback
 
-auth_type = auth_type.lower()
+try:
+    import config
+except ImportError:
+    print('Try configuring your bot again! ;)', file=sys.stderr)
+    quit()
+
+PY3 = True if sys.version_info[0] == 3 else False
 
 try:
     import urllib.request as urlreq
@@ -25,12 +31,17 @@ except ImportError:
     import urllib as urlreq
     from urllib import quote_plus as urlquote
 
+try:
+    from imp import reload
+except ImportError:
+    pass
+
 import xml.dom.minidom as minidom
 
 
 # User configurable parts
-APIKEY = lastfm_apikey
-SECRET = lastfm_secret
+APIKEY = config.lastfm_apikey
+SECRET = config.lastfm_secret
 
 # TODO: make these not global -.-
 user_changed = False
@@ -39,24 +50,29 @@ def user_check(irc, line):
     if not line.hostmask:
         return
 
-    if auth_type == "admin":
+    nick = line.hostmask.nick
+    host = line.hostmask.host
+
+    global config
+
+    if config.auth_type == "admin":
         # XXX ugh, I hate this
-        if line.hostmask.nick not in admin_nicks:
+        if nick not in config.admin_nicks:
             return
 
-        if line.hostmask.host not in admin_hosts:
+        if host not in config.admin_hosts:
             return
-    elif auth_type == "account":
-        if line.hostmask.nick not in irc.users:
+    elif config.auth_type == "account":
+        if nick not in irc.users:
             return
 
-        if irc.users[line.hostmask.nick].account not in admin_accounts:
+        if irc.users[nick].account not in config.admin_accounts:
             return
     else:
-        if auth_type(irc, line) == None:
+        if config.auth_type(irc, line) == None:
             return
 
-    admin = line.hostmask.nick
+    admin = nick
 
     message = line.params[-1]
 
@@ -81,6 +97,16 @@ def user_check(irc, line):
     elif command.startswith('list'):
         userlist = load_users()
         irc.cmdwrite('PRIVMSG', [admin, ' '.join(userlist)])
+    elif command.startswith('reload'):
+        oldconfig = config
+        try:
+            reload(config)
+        except Exception as e:
+            exstr = 'Failed reloading: {}'.format(str(e))
+            irc.cmdwrite('PRIVMSG', [admin, exstr])
+
+            # Try to restore old config
+            config = oldconfig
 
 def spam_msg(irc, message):
     for ch in irc.channels.values():
@@ -261,9 +287,15 @@ def do_poll(irc):
             elif last == np:
                 continue
 
-            string = u"{} is listening to: {} - {} (album: {}) [{}] | Playcount: {}x | Genre: {}".format(k, *np)
+            fmt = ("{} is listening to: {} - {} (album: {}) [{}] | "
+                   "Playcount: {}x | Genre: {}")
+
+            if not PY3:
+                fmt = unicode(fmt)
+
+            string = fmt.format(k, *np)
             print(string)
-    
+
             spam_msg(irc, string)
             npcache[k] = np
 
@@ -288,8 +320,9 @@ def run_irc(irc):
         print("Disconnected", str(e))
         sleep(5) 
 
-irc = IRCClient(nick=nick, user=user, host=server, port=port,
-                realname=realname, channels=channels)
+irc = IRCClient(nick=config.nick, user=config.user, host=config.server,
+                port=config.port, realname=config.realname,
+                channels=config.channels)
 irc.connect()
 
 g1 = spawn(run_irc, irc)

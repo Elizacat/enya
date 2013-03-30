@@ -2,7 +2,7 @@
 
 ## Auth type
 ## auth_type = "account" is more secure.
-auth_type = "admin"
+auth_type = "account"
 
 ## Accounts (used for auth_type account)
 admin_accounts = ['Elizacat']

@@ -42,3 +42,6 @@ nosetests.xml
 # Backup files
 *.swp
 *~
+
+# Config
+config.py
