@@ -16,6 +16,8 @@ from copy import deepcopy
 from settings import *
 import traceback
 
+auth_type = auth_type.lower()
+
 try:
     import urllib.request as urlreq
     from urllib.parse import quote_plus as urlquote
@@ -37,12 +39,22 @@ def user_check(irc, line):
     if not line.hostmask:
         return
 
-    # XXX ugh, I hate this
-    if line.hostmask.nick not in admin_nicks:
-        return
+    if auth_type == "admin":
+        # XXX ugh, I hate this
+        if line.hostmask.nick not in admin_nicks:
+            return
 
-    if line.hostmask.host not in admin_hosts:
-        return
+        if line.hostmask.host not in admin_hosts:
+            return
+    elif auth_type == "account":
+        if line.hostmask.nick not in irc.users:
+            return
+
+        if irc.users[line.hostmask.nick].account not in admin_accounts:
+            return
+    else:
+        if auth_type(irc, line) == None:
+            return
 
     admin = line.hostmask.nick
 

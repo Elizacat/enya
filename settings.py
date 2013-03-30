@@ -1,6 +1,13 @@
 # Enya configuration
 
-## Admins
+## Auth type
+## auth_type = "account" is more secure.
+auth_type = "admin"
+
+## Accounts (used for auth_type account)
+admin_accounts = ['Elizacat']
+
+## Admins (used for auth_type admin)
 admin_nicks = ['Elizacat',]
 admin_hosts = ['smoke.weird.errday',]
 
