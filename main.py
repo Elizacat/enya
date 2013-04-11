@@ -119,7 +119,7 @@ def write_userlist(userlist):
 def add_to_userlist(irc, admin, user):
     global user_changed
     userlist = load_users()
-    if param in userlist:
+    if user in userlist:
         irc.cmdwrite('PRIVMSG', [admin, 'Already in there'])
         return
     
@@ -133,7 +133,7 @@ def add_to_userlist(irc, admin, user):
 def delete_from_userlist(irc, admin, user):
     global user_changed
     userlist = load_users()
-    if param not in userlist:
+    if user not in userlist:
         irc.cmdwrite('PRIVMSG', [admin,  'Not in there.'])
         return
     
