@@ -123,7 +123,7 @@ def add_to_userlist(irc, admin, user):
         irc.cmdwrite('PRIVMSG', [admin, 'Already in there'])
         return
     
-    userlist.append(param)
+    userlist.add(param)
     
     write_userlist(userlist)
 
@@ -137,7 +137,7 @@ def delete_from_userlist(irc, admin, user):
         irc.cmdwrite('PRIVMSG', [admin,  'Not in there.'])
         return
     
-    userlist.remove(param)
+    userlist.discard(param)
 
     write_userlist(userlist)
 
@@ -145,9 +145,9 @@ def delete_from_userlist(irc, admin, user):
     user_changed = True
 
 def load_users():
-    temp = []
+    temp = set() 
     with open('userlist.txt', 'r') as f:
-        temp = [x.rstrip('\n') for x in f]
+        temp.update([x.rstrip('\n') for x in f])
     return temp
 
 def dl_xml_from(url):
@@ -159,7 +159,7 @@ def dl_xml_from(url):
         if str(e) == "HTTP Error 400: Bad Request":
             raise Exception("No user with that name was found")
         else:
-            raise e
+            raise
            
     last_xml = last_sock.read()
     last_sock.close()
@@ -260,8 +260,8 @@ def do_poll(irc):
                 track = get_np_for(k)
             except Exception as e:
                 if str(e) != "No user with that name was found":
-                    raise e
-                
+                    raise
+
                 userlist.remove(k)
                 del npcache[k]
 
@@ -310,15 +310,25 @@ def exception_wrapper(irc):
             sleep(10)
 
 
-def run_irc(irc):
+def run_irc(irc, recurse=0):
     try:
         generator = irc.get_lines()
         for line in generator:
             if line and line.command == 'PRIVMSG':
                 user_check(irc, line)
-    except IOError as e:
-        print("Disconnected", str(e))
-        sleep(5) 
+    except Exception as e:
+        if not irc.connected:
+            print("Disconnected", str(e))
+            sleep(5)
+        else:
+            # Blargh
+            print("Probable non-fatal exception received:")
+            traceback.print_exc()
+            if recurse >= 10:
+                print("Recursion depth exceeded for errors")
+                raise
+            recurse += 1
+            run_irc(irc, recurse)
 
 irc = IRCClient(nick=config.nick, user=config.user, host=config.server,
                 port=config.port, realname=config.realname,
