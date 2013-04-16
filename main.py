@@ -326,6 +326,7 @@ def run_irc(irc, recurse=0):
             traceback.print_exc()
             if recurse >= 10:
                 print("Recursion depth exceeded for errors")
+                irc.close()
                 raise
             recurse += 1
             run_irc(irc, recurse)
