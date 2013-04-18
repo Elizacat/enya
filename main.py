@@ -212,7 +212,7 @@ def get_np_for(user):
     # makes play count retrieval easier-ish
     try:
         info['mbid'] = our_track['mbid']
-        if not info['mbid'] = info['mbid'] = None
+        if not info['mbid']: info['mbid'] = None
     except Exception:
         info['mbid'] = None
     
