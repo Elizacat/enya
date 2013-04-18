@@ -197,17 +197,22 @@ def get_np_for(user):
     try:
         info['title'] = our_track['name']
         info['artist'] = our_track['artist']['#text'] # yes, wtf.
+        if any(((not x) for x in (info['title'], info['artist']))):
+            # Punt.
+            return None
     except Exception:
         return None # track name or artist missing, shouldn't scrobble
 
     try:
         info['album'] = our_track['album']['#text']
+        if not info['album']: info['album'] = None
     except Exception:
         info['album'] = None
     
     # makes play count retrieval easier-ish
     try:
         info['mbid'] = our_track['mbid']
+        if not info['mbid'] = info['mbid'] = None
     except Exception:
         info['mbid'] = None
     
