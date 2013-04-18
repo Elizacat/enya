@@ -31,12 +31,13 @@ except ImportError:
     import urllib as urlreq
     from urllib import quote_plus as urlquote
 
+
+import json
+
 try:
     from imp import reload
 except ImportError:
     pass
-
-import xml.dom.minidom as minidom
 
 
 # User configurable parts
@@ -150,7 +151,7 @@ def load_users():
         temp.update([x.rstrip('\n') for x in f])
     return temp
 
-def dl_xml_from(url):
+def dl_json_from(url):
     # Fsck it, we'll do it live, I don't care
     # I know I'll be murdered unpleasantly by a cat, but I like doing things MY WAY, OK - CorgiDude
     try:
@@ -161,9 +162,9 @@ def dl_xml_from(url):
         else:
             raise
            
-    last_xml = last_sock.read()
+    last_json = last_sock.read()
     last_sock.close()
-    last_doc = minidom.parseString(last_xml)
+    last_doc = json.loads(last_json)
     return last_doc
 
 def get_np_for(user):
@@ -172,36 +173,42 @@ def get_np_for(user):
     info['artist'] = None
     info['album'] = None
     
-    url = "http://ws.audioscrobbler.com/2.0/?method=user.getRecentTracks&user={user}&limit=1&api_key={key}".format(user = user, key = APIKEY)
-    last_doc = dl_xml_from(url)
-    tracks = last_doc.getElementsByTagName("track")
+    url = "http://ws.audioscrobbler.com/2.0/?method=user.getRecentTracks&user={user}&limit=1&api_key={key}&format=json".format(user = user, key = APIKEY)
+    last_doc = dl_json_from(url)
+
+    if 'recenttracks' not in last_doc:
+        return # Nothing to be done.
+
+    if 'track' not in last_doc['recenttracks']:
+        return # Nothing to be done
+
+    tracks = last_doc['recenttracks']['track']
     if tracks is None or len(tracks) == 0:
        return None # Punt.  Nothing can be done.
-    
+
     our_track = None
     for t in tracks:
-        if t.hasAttribute('nowplaying') is False: continue
-        else:
+        if '@attr' in t and 'nowplaying' in t['@attr']:
             our_track = t
             break
-    
+ 
     if our_track is None: return None
-    
+
     try:
-        info['title'] = our_track.getElementsByTagName("name")[0].childNodes[0].data
-        info['artist'] = our_track.getElementsByTagName("artist")[0].childNodes[0].data
-    except:
-        return None  # track name or artist missing, shouldn't scrobble
-    
+        info['title'] = our_track['name']
+        info['artist'] = our_track['artist']['#text'] # yes, wtf.
+    except Exception:
+        return None # track name or artist missing, shouldn't scrobble
+
     try:
-        info['album'] = our_track.getElementsByTagName("album")[0].childNodes[0].data
-    except:
+        info['album'] = our_track['album']['#text']
+    except Exception:
         info['album'] = None
     
     # makes play count retrieval easier-ish
     try:
-        info['mbid'] = our_track.getElementsByTagName("mbid")[0].childNodes[0].data
-    except:
+        info['mbid'] = our_track['mbid']
+    except Exception:
         info['mbid'] = None
     
     return info
@@ -210,25 +217,31 @@ def get_np_for(user):
 def get_counts_for(track, user):
     params = ""
     if track['mbid'] is None:
-        params = "artist={artist}&track={track}".format(artist = urlquote(unicode(track['artist']).encode('utf-8', 'replace')), track = urlquote(unicode(track['title']).encode('utf-8', 'replace')))
+        params = "artist={artist}&track={track}".format(artist = urlquote(unicode(track['artist']).encode('utf-8', 'replace')),
+                                                        track = urlquote(unicode(track['title']).encode('utf-8', 'replace')))
     else:
         params = "mbid={mbid}".format(mbid = track['mbid'])
-    url = "http://ws.audioscrobbler.com/2.0/?method=track.getInfo&{params}&username={user}&api_key={key}".format(user = user, params = params, key = APIKEY)
-    last_doc = dl_xml_from(url)
+    url = "http://ws.audioscrobbler.com/2.0/?method=track.getInfo&{params}&username={user}&api_key={key}&format=json".format(user = user, params = params, key = APIKEY)
+    last_doc = dl_json_from(url)
+
+    if 'track' not in last_doc:
+        return (0, 0, None)
+
+    track = last_doc['track']
 
     try:
-        track_ms = last_doc.getElementsByTagName("duration")[0].childNodes[0].data
-    except:
+        track_ms = track['duration']
+    except Exception:
         track_ms = 0
     
     try:
-        play_count = last_doc.getElementsByTagName("userplaycount")[0].childNodes[0].data
-    except:
+        play_count = track['userplaycount']
+    except Exception:
         play_count = 0
     
     try:
-        genre = last_doc.getElementsByTagName("tag")[0].getElementsByTagName("name")[0].childNodes[0].data
-    except:
+        genre = ', '.join([x['name'] for x in track['toptags']['tag']][:5])
+    except Exception:
         genre = None
     
     duration = '{}:{:02d}'.format(*divmod(int(int(track_ms) / 1000), 60))
@@ -275,7 +288,7 @@ def do_poll(irc):
             album = track['album']
             try:
                 duration, count, genre = get_counts_for(track, k)
-            except:
+            except Exception as e:
                 duration = count = 0
                 genre = None
 
@@ -288,7 +301,7 @@ def do_poll(irc):
                 continue
 
             fmt = ("{} is listening to: {} - {} (album: {}) [{}] | "
-                   "Playcount: {}x | Genre: {}")
+                   "Playcount: {}x | Genre(s): {}")
 
             if not PY3:
                 fmt = unicode(fmt)
