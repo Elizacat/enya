@@ -312,7 +312,10 @@ def do_poll(irc):
                 fmt = unicode(fmt)
 
             string = fmt.format(k, *np)
-            print(string)
+            if hasattr(sys.stdout, 'buffer'):
+                sys.stdout.buffer.write(string.encode(sys.stdout.encoding, 'replace') + b'\n')
+            else:
+                sys.stdout.write(string.encode(sys.stdout.encoding, 'replace') + b'\n')
 
             spam_msg(irc, string)
             npcache[k] = np
