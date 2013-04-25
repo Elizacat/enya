@@ -32,6 +32,7 @@ except ImportError:
     from urllib import quote_plus as urlquote
 
 
+import xml.dom.minidom as minidom 
 import json
 
 try:
@@ -151,9 +152,7 @@ def load_users():
         temp.update([x.rstrip('\n') for x in f])
     return temp
 
-def dl_json_from(url):
-    # Fsck it, we'll do it live, I don't care
-    # I know I'll be murdered unpleasantly by a cat, but I like doing things MY WAY, OK - CorgiDude
+def get_data(url):
     try:
         last_sock = urlreq.urlopen(url)
     except Exception as e:
@@ -161,21 +160,79 @@ def dl_json_from(url):
             raise Exception("No user with that name was found")
         else:
             raise
-           
-    last_json = last_sock.read()
+
+    last_data = last_sock.read()
     last_sock.close()
-    last_doc = json.loads(last_json)
-    return last_doc
+
+    if not last_data:
+        # punt.
+        return (None, None)
+
+    try:
+        return ('json', json.loads(last_data))
+    except Exception:
+        # try XML?
+        print('WARNING: falling back to XML for parsing!')
+        return ('xml', minidom.parseString(last_xml))
 
 def get_np_for(user):
+    url = "http://ws.audioscrobbler.com/2.0/?method=user.getRecentTracks&user={user}&limit=1&api_key={key}&format=json".format(user=user, key=APIKEY)
+    fmt, data = get_data(url)
+
+    if fmt is None:
+        return None
+
+    if fmt == 'json':
+        return json_get_np_for(data)
+    elif fmt == 'xml':
+        return xml_get_np_for(data)
+    else:
+        return None # Can't happen
+
+def xml_get_np_for(last_doc):
     info = {}
     info['track'] = None
     info['artist'] = None
     info['album'] = None
     
-    url = "http://ws.audioscrobbler.com/2.0/?method=user.getRecentTracks&user={user}&limit=1&api_key={key}&format=json".format(user = user, key = APIKEY)
-    last_doc = dl_json_from(url)
+    tracks = last_doc.getElementsByTagName("track")
+    if tracks is None or len(tracks) == 0:
+       return None # Punt. Nothing can be done.
+    
+    our_track = None
+    for t in tracks:
+        if t.hasAttribute('nowplaying') is False: continue
+        else:
+            our_track = t
+            break
+    
+    if our_track is None: return None
+    
+    try:
+        info['title'] = our_track.getElementsByTagName("name")[0].childNodes[0].data
+        info['artist'] = our_track.getElementsByTagName("artist")[0].childNodes[0].data
+    except:
+        return None # track name or artist missing, shouldn't scrobble
+    
+    try:
+        info['album'] = our_track.getElementsByTagName("album")[0].childNodes[0].data
+    except:
+        info['album'] = None
+    
+    # makes play count retrieval easier-ish
+    try:
+        info['mbid'] = our_track.getElementsByTagName("mbid")[0].childNodes[0].data
+    except:
+        info['mbid'] = None
+    
+    return info
 
+def json_get_np_for(last_doc):
+    info = {}
+    info['track'] = None
+    info['artist'] = None
+    info['album'] = None
+    
     if 'recenttracks' not in last_doc:
         return # Nothing to be done.
 
@@ -218,17 +275,28 @@ def get_np_for(user):
     
     return info
 
-
 def get_counts_for(track, user):
+    # TODO - should be prepared for XML
     params = ""
     if track['mbid'] is None:
         params = "artist={artist}&track={track}".format(artist = urlquote(unicode(track['artist']).encode('utf-8', 'replace')),
                                                         track = urlquote(unicode(track['title']).encode('utf-8', 'replace')))
     else:
         params = "mbid={mbid}".format(mbid = track['mbid'])
-    url = "http://ws.audioscrobbler.com/2.0/?method=track.getInfo&{params}&username={user}&api_key={key}&format=json".format(user = user, params = params, key = APIKEY)
-    last_doc = dl_json_from(url)
+    url = "http://ws.audioscrobbler.com/2.0/?method=track.getInfo&{params}&username={user}&api_key={key}&format=json".format(user=user, params=params, key=APIKEY)
 
+    fmt, data = get_data(url)
+    if fmt is None:
+        return (None, None, None)
+
+    if fmt == 'json':
+        return json_get_counts_for(data)
+    elif fmt == 'xml':
+        return xml_get_counts_for(data)
+    else:
+        return (None, None, None)
+
+def json_get_counts_for(last_doc):
     if 'track' not in last_doc:
         return (0, 0, None)
 
@@ -251,6 +319,27 @@ def get_counts_for(track, user):
     
     duration = '{}:{:02d}'.format(*divmod(int(int(track_ms) / 1000), 60))
     return (duration, play_count, genre)
+
+def xml_get_counts_for(last_doc):
+    try:
+        track_ms = last_doc.getElementsByTagName("duration")[0].childNodes[0].data
+    except:
+        track_ms = 0
+    
+    try:
+        play_count = last_doc.getElementsByTagName("userplaycount")[0].childNodes[0].data
+    except:
+        play_count = 0
+    
+    try:
+        # XXX more genres
+        genre = last_doc.getElementsByTagName("tag")[0].getElementsByTagName("name")[0].childNodes[0].data
+    except:
+        genre = None
+    
+    duration = '{}:{:02d}'.format(*divmod(int(int(track_ms) / 1000), 60))
+    return (duration, play_count, genre)
+
 
 def do_poll(irc):
     global user_changed
