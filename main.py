@@ -8,7 +8,7 @@ from __future__ import print_function, unicode_literals, division
 from gevent import socket, monkey, sleep, spawn, joinall
 monkey.patch_all()
 
-from irclib.client.client import IRCClient
+from PyIRC.client.client import IRCClient
 
 from collections import namedtuple
 from copy import deepcopy
