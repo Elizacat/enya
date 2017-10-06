@@ -12,4 +12,4 @@ See main.py. Requires gevent and PyIRC (http://github.com/Elizacat/PyIRC)
 
 Bugs
 =====
-HA HA HA!
+# **HA HA HA!**
